@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lampe connectée · émulateur</title>
+<style>
+/* La carte ESP32 simulée à gauche, l'activité BLE à droite. Aucune ressource externe : fonctionne hors ligne. */
+:root {
+  --fond: #eef1f4;
+  --surface: #ffffff;
+  --texte: #16202b;
+  --texte-doux: #5b6773;
+  --trait: #d9dee4;
+  --pcb: #17324a;
+  --pcb-bord: #0f2436;
+  --serigraphie: #d7e3ee;
+  --or: #c9a24b;
+  --led-on: #ffd23f;
+  --led-off: #3a3f2a;
+  --bleu: #2563eb;
+  --vert: #16a34a;
+  --violet: #7c3aed;
+  --rouge: #dc2626;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #0e141b; --surface: #17202a; --texte: #e6edf3; --texte-doux: #93a1ae; --trait: #283441;
+    --bleu: #60a5fa; --vert: #4ade80; --violet: #a78bfa; --rouge: #f87171; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif }
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; max-width: 1100px; margin: 0 auto; padding: 20px 16px 8px }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 650 }
+h1 small { font-weight: 400; color: var(--texte-doux) }
+.statut { display: inline-flex; align-items: center; gap: 8px; font-size: .85rem; padding: 4px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--trait) }
+.statut::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--vert) }
+.statut.hors-ligne::before { background: var(--rouge) }
+main { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 20px; max-width: 1100px; margin: 0 auto; padding: 12px 16px 32px }
+@media (max-width: 860px) { main { grid-template-columns: 1fr } }
+
+/* La carte */
+.carte {
+  position: relative; background: var(--pcb); border: 3px solid var(--pcb-bord); border-radius: 18px;
+  padding: 28px 28px 32px; color: var(--serigraphie); min-height: 520px;
+  display: flex; flex-direction: column; align-items: center; gap: 26px;
+  background-image: radial-gradient(circle at 1px 1px, rgb(255 255 255 / .05) 1px, transparent 0); background-size: 14px 14px;
+}
+.broches { position: absolute; top: 18px; bottom: 18px; width: 10px; display: flex; flex-direction: column; justify-content: space-between }
+.broches.g { left: 10px } .broches.d { right: 10px }
+.broches i { display: block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--or); background: var(--pcb-bord) }
+.module { width: 70%; border: 2px solid #9aa9b6; border-radius: 6px; padding: 10px 12px; background: #c7ced6; color: #2b3540; text-align: center; font: 600 .8rem/1.3 var(--mono); letter-spacing: .04em }
+.module b { display: block; font-size: 1.05rem; color: #111; margin-top: 2px; word-break: break-all }
+.led-zone { display: flex; flex-direction: column; align-items: center; gap: 10px }
+.led {
+  width: 132px; height: 132px; border-radius: 50%; background: radial-gradient(circle at 38% 32%, #6a6f55, var(--led-off) 60%);
+  border: 4px solid #0a1824; transition: background .15s, box-shadow .15s;
+}
+.led.on {
+  background: radial-gradient(circle at 38% 32%, #fffbe6, var(--led-on) 55%, #f0a500);
+  box-shadow: 0 0 30px 8px rgb(255 210 63 / .75), 0 0 90px 30px rgb(255 210 63 / .35);
+}
+.etiquette { font: 600 .72rem/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--serigraphie); opacity: .8 }
+.etat-led { font-size: 1.25rem; font-weight: 650; color: #fff }
+.bouton-zone { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: auto }
+.bouton {
+  width: 74px; height: 74px; border-radius: 14px; border: 3px solid #0a1824; cursor: pointer;
+  background: #2b2f33; box-shadow: inset 0 -6px 0 #15181b, 0 4px 0 #0a1824; display: grid; place-items: center;
+}
+.bouton span { width: 36px; height: 36px; border-radius: 50%; background: #111; box-shadow: inset 0 2px 4px rgb(255 255 255 / .2) }
+.bouton:active { transform: translateY(3px); box-shadow: inset 0 -3px 0 #15181b, 0 1px 0 #0a1824 }
+.bouton:focus-visible { outline: 3px solid var(--led-on); outline-offset: 4px }
+
+/* Panneau d'activité */
+.panneau { display: grid; gap: 16px; align-content: start; min-width: 0 }
+.bloc { background: var(--surface); border: 1px solid var(--trait); border-radius: 14px; padding: 16px 18px; min-width: 0 }
+.bloc h2 { margin: 0 0 10px; font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--texte-doux); font-weight: 650 }
+.chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px }
+.chiffre b { display: block; font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1 }
+.chiffre span { color: var(--texte-doux); font-size: .85rem }
+ul.liste { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px }
+ul.liste li { font-size: .85rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--trait) }
+ul.liste li.actif { border-color: var(--vert); color: var(--vert) }
+.vide { color: var(--texte-doux); font-size: .9rem }
+.journal { font: .8rem/1.55 var(--mono); max-height: 340px; overflow: auto; margin: 0; padding: 0; list-style: none }
+.journal li { padding: 2px 0; border-bottom: 1px dashed var(--trait); overflow-wrap: anywhere }
+.journal time { color: var(--texte-doux); margin-right: 8px }
+.journal .notif { color: var(--bleu) } .journal .ecriture { color: var(--violet) }
+.journal .client { color: var(--vert) } .journal .erreur { color: var(--rouge) }
+.aide { color: var(--texte-doux); font-size: .85rem; margin: 6px 0 0 }
+code { font-family: var(--mono); font-size: .85em }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lampe connectée <small>· émulateur ESP32</small></h1>
+  <span class="statut" id="statut">Connexion à l'émulateur…</span>
+</header>
+
+<main>
+  <section class="carte" aria-label="La carte ESP32 simulée">
+    <div class="broches g" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="broches d" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="module">ESP32 · BLE<b id="nom">PMW-…</b></div>
+    <div class="led-zone">
+      <div class="led" id="led" role="img" aria-label="LED éteinte"></div>
+      <span class="etiquette">LED</span>
+      <span class="etat-led" id="etat-led">Éteinte</span>
+    </div>
+    <div class="bouton-zone">
+      <button class="bouton" id="bouton" type="button" aria-label="Appuyer sur le bouton physique"><span></span></button>
+      <span class="etiquette">Bouton</span>
+    </div>
+  </section>
+
+  <div class="panneau">
+    <section class="bloc">
+      <h2>La lampe</h2>
+      <div class="chiffres">
+        <div class="chiffre"><b id="compteur">0</b><span>bascules</span></div>
+        <div class="chiffre"><b id="nb-clients">0</b><span>téléphone(s) connecté(s)</span></div>
+      </div>
+    </section>
+
+    <section class="bloc">
+      <h2>Téléphones connectés</h2>
+      <ul class="liste" id="clients"><li class="vide">Aucun. Lancez un scan depuis le téléphone.</li></ul>
+    </section>
+
+    <section class="bloc">
+      <h2>Notifications activées</h2>
+      <ul class="liste" id="abonnements"></ul>
+      <p class="aide" id="aide-abonnement"></p>
+    </section>
+
+    <section class="bloc">
+      <h2>Journal</h2>
+      <ol class="journal" id="journal"></ol>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id)
+const CARACTERISTIQUES = ['LED_STATE', 'TOGGLE_COUNT', 'WIFI']
+const LIBELLES = { LED_STATE: 'État de la LED', TOGGLE_COUNT: 'Compteur', WIFI: 'Réseaux Wi-Fi' }
+
+function afficherEtat(e) {
+  $('nom').textContent = e.nom
+  $('led').classList.toggle('on', e.led)
+  $('led').setAttribute('aria-label', e.led ? 'LED allumée' : 'LED éteinte')
+  $('etat-led').textContent = e.led ? 'Allumée' : 'Éteinte'
+  $('compteur').textContent = e.compteur
+  $('nb-clients').textContent = e.clients.length
+  $('clients').innerHTML = e.clients.length
+    ? e.clients.map(c => `<li class="actif">${echapper(c)}</li>`).join('')
+    : '<li class="vide">Aucun. Lancez un scan depuis le téléphone.</li>'
+  $('abonnements').innerHTML = CARACTERISTIQUES
+    .map(c => `<li class="${e.abonnements.includes(c) ? 'actif' : ''}">${LIBELLES[c]}</li>`).join('')
+  $('aide-abonnement').textContent = e.notifAbonnement
+    ? "L'état et le compteur sont envoyés dès qu'un téléphone s'abonne."
+    : "Comme la vraie carte : l'état n'est envoyé qu'au premier changement."
+  document.title = `${e.led ? '💡' : '○'} ${e.nom} · émulateur`
+}
+
+function ajouterJournal(l) {
+  const li = document.createElement('li')
+  const m = l.message
+  li.className = m.startsWith('Notification') ? 'notif'
+    : m.startsWith('Écriture') || m.startsWith('HTTP') ? 'ecriture'
+    : m.startsWith('Client') || m.startsWith('Abonnement') || m.startsWith('Désabonnement') ? 'client'
+    : m.startsWith('ERREUR') || m.startsWith('Attention') || m.startsWith('Nom refusé') ? 'erreur' : ''
+  li.innerHTML = `<time>${l.heure}</time>${echapper(m)}`
+  const journal = $('journal')
+  journal.prepend(li)
+  while (journal.children.length > 100) journal.lastChild.remove()
+}
+
+function echapper(t) {
+  return String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+}
+
+function connecter() {
+  const source = new EventSource('/evenements')
+  source.onopen = () => {
+    $('statut').textContent = 'Émulateur en marche'
+    $('statut').classList.remove('hors-ligne')
+    $('journal').innerHTML = '' // l'historique est renvoyé à chaque connexion
+  }
+  source.onmessage = ev => {
+    const e = JSON.parse(ev.data)
+    if (e.type === 'etat') afficherEtat(e)
+    else if (e.type === 'journal') ajouterJournal(e)
+  }
+  source.onerror = () => {
+    $('statut').textContent = 'Émulateur arrêté'
+    $('statut').classList.add('hors-ligne')
+  }
+}
+
+$('bouton').addEventListener('click', () => fetch('/bouton', { method: 'POST' }))
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'b' && !ev.repeat && !ev.ctrlKey && !ev.metaKey) fetch('/bouton', { method: 'POST' })
+})
+connecter()
+</script>
+</body>
+</html>
