@@ -21,6 +21,8 @@ class Journal:
     def __call__(self, message: str, niveau: str = "info") -> None:
         if niveau == "debug" and not self.verbeux:
             return
+        if niveau == "tableau":
+            return  # message destiné au seul tableau de bord
         heure = time.strftime("%H:%M:%S")
         if message.startswith("Notification"):
             message = _c("36", message)

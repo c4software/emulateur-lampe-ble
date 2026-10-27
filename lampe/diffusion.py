@@ -57,7 +57,7 @@ class JournalDiffuse:
 
     def __call__(self, message: str, niveau: str = "info") -> None:
         self.journal(message, niveau)
-        if niveau != "debug":
+        if niveau not in ("debug", "terminal"):
             self.diffusion.publier_journal(message)
         self.diffusion.publier_etat()
 

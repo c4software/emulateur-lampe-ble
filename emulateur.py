@@ -66,7 +66,9 @@ async def principal(args) -> int:
     if not args.name and not stockage.lire().get("nom"):
         # Nom par défaut façon ESP32 : PMW- suivi des 4 derniers chiffres de l'adresse.
         lampe.nom = "PMW-" + props.get("Address", "00:00").replace(":", "")[-4:].upper()
-    journal(f"Adaptateur {args.adapter} ({props.get('Address')}) allumé")
+    # Adresse matérielle du PC : dans le terminal seulement, pas sur le tableau de bord (souvent projeté)
+    journal(f"Adaptateur {args.adapter} ({props.get('Address')}) allumé", niveau="terminal")
+    journal(f"Adaptateur {args.adapter} allumé", niveau="tableau")
 
     arret = asyncio.Event()
     serveur_http = None
