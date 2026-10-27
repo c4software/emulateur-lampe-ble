@@ -32,7 +32,7 @@ python3 -m venv .venv
 
 Puis ouvrez le tableau de bord dans un navigateur : **http://localhost:8080/**
 
-Au démarrage, la lampe s'annonce sous le nom `PMW-XXXX`, où `XXXX` reprend les 4 derniers chiffres de l'adresse de l'adaptateur (ici `PMW-D708`). Si un nom a été enregistré (via BLE ou `--name`), c'est lui qui est utilisé.
+Au démarrage, la lampe s'annonce sous le nom `PMW-XXXX`, où `XXXX` reprend les 4 derniers chiffres de l'adresse de l'adaptateur (ici `PMW-D708`). Si un nom a été enregistré (via BLE ou `--name`), c'est lui qui est utilisé, toujours avec le préfixe `PMW-` (ajouté automatiquement s'il manque).
 
 ### Le tableau de bord
 
@@ -84,7 +84,7 @@ Service principal : `795090c7-420d-4048-a24e-18e60180e23c` (présent dans l'anno
 | TOGGLE_LED | `59b6bf7f-44de-4184-81bd-a0e3b30c919b` | WRITE | Toute écriture bascule la LED, quelle que soit la valeur (`"1"`, `"0"`…), comme sur la carte : compteur + 1, notification de l'état et du compteur. Seule exception : une suite de `0`/`1` de plusieurs caractères (ex. `1010100011101110111000101010`) joue un motif. |
 | LED_STATE | `d75167c8-e6f9-4f0b-b688-09d96e195f00` | NOTIFY | `"1"` (allumée) ou `"0"` (éteinte), à chaque changement |
 | TOGGLE_COUNT | `a877d87f-60bf-4ad5-ba61-56133b2cd9d4` | NOTIFY | Nombre de bascules en texte (`"0"`, `"1"`…), à chaque changement |
-| DEVICE_NAME | `1497b8a8-64f8-11ee-8c99-0242ac120002` | WRITE | Nouveau nom en UTF-8, enregistré dans `etat-lampe.json` et réannoncé immédiatement. Un nom vide est refusé. |
+| DEVICE_NAME | `1497b8a8-64f8-11ee-8c99-0242ac120002` | WRITE | Nouveau nom en UTF-8, enregistré dans `etat-lampe.json` et réannoncé immédiatement. Le préfixe `PMW-` est ajouté s'il manque (`Valentin` devient `PMW-Valentin`). Un nom vide est refusé. |
 | WIFI | `10f83060-64f8-11ee-8c99-0242ac120002` | WRITE, NOTIFY | **Simulé**, voir ci-dessous |
 
 Les caractéristiques NOTIFY ne sont pas lisibles, comme sur l'ESP32. Le compteur et l'état de la LED repartent à zéro à chaque lancement ; seuls le nom et les identifiants Wi-Fi sont persistants.
@@ -157,6 +157,8 @@ rfkill unblock bluetooth # si Soft blocked: yes
 - si le PC et le téléphone sont appairés (casque, partage de connexion…), supprimez l'appairage côté téléphone.
 
 Après connexion, Android peut aussi lire le nom GAP (caractéristique `0x2A00`), qui est le nom de l'adaptateur du PC (par exemple `mon-ordinateur`) et non celui de la lampe. Pour l'aligner, lancez avec `--alias-adapter` : l'alias de l'adaptateur est changé pendant l'exécution puis restauré à l'arrêt (s'il est interrompu brutalement, restaurez-le avec `bluetoothctl system-alias <nom>`).
+
+**« Un émulateur tourne déjà sur hci0 ».** Un seul émulateur peut tourner par adaptateur : deux services identiques sur le même PC rendent la table GATT incohérente pour les téléphones (erreur « Invalid Handle » à l'activation des notifications). Arrêtez l'autre instance (Ctrl+C dans son terminal). Si un téléphone a gardé l'ancienne table en cache, désactivez puis réactivez son Bluetooth.
 
 **Le journal indique des « Client connecté » inattendus.** Les connexions de tous les appareils Bluetooth du PC (casque, souris…) sont affichées.
 

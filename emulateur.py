@@ -3,6 +3,8 @@
 
 import argparse
 import asyncio
+import fcntl
+import os
 import signal
 import sys
 from pathlib import Path
@@ -33,6 +35,19 @@ def analyser_arguments(argv=None):
     return p.parse_args(argv)
 
 
+def verrouiller(adaptateur: str):
+    """Un seul émulateur par adaptateur : deux services GATT identiques perturbent les téléphones
+    (table GATT incohérente, erreurs « Invalid Handle »). Renvoie le verrou, ou None s'il est déjà pris."""
+    dossier = os.environ.get("XDG_RUNTIME_DIR") or "/tmp"
+    verrou = open(os.path.join(dossier, f"emulateur-lampe-{adaptateur}.lock"), "w")
+    try:
+        fcntl.flock(verrou, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        verrou.close()
+        return None
+    return verrou
+
+
 async def principal(args) -> int:
     from lampe.ble import ErreurBluez, PeripheriqueBLE
     from lampe.diffusion import Diffusion, JournalDiffuse
@@ -51,6 +66,11 @@ async def principal(args) -> int:
 
     diffusion = Diffusion(instantane)
     journal = JournalDiffuse(Journal(args.verbose), diffusion)
+
+    verrou = verrouiller(args.adapter)
+    if verrou is None:
+        journal(f"ERREUR : un émulateur tourne déjà sur {args.adapter}. Arrêtez-le avant d'en lancer un autre.")
+        return 1
     stockage = Stockage(args.state_file)
     lampe = Lampe(stockage, nom_force=args.name,
                   notifier_a_l_abonnement=not args.no_notify_on_subscribe,

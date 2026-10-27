@@ -90,6 +90,12 @@ class TestNom(Base):
     async def test_utf8(self):
         self.assertEqual(self.lampe().renommer("PMW-Éloïse".encode()), "PMW-Éloïse")
 
+    async def test_prefixe_ajoute_si_absent(self):
+        l = self.lampe()
+        self.assertEqual(l.renommer(b"Valentin"), "PMW-Valentin")
+        self.assertEqual(json.loads(self.fichier.read_text())["nom"], "PMW-Valentin")
+        self.assertEqual(self.lampe(nom_force="Salon").nom, "PMW-Salon")
+
 
 class TestAbonnement(Base):
     async def test_valeurs_initiales_par_defaut(self):

@@ -23,6 +23,12 @@ RESEAUX_SIMULES = [
 ]
 
 TAILLE_MAX_NOM = 29  # octets disponibles pour le nom dans la réponse de scan
+PREFIXE_NOM = "PMW-"  # toutes les lampes s'annoncent avec ce préfixe
+
+
+def avec_prefixe(nom: str) -> str:
+    """Ajoute le préfixe PMW- s'il manque (« Valentin » devient « PMW-Valentin »)."""
+    return nom if nom.startswith(PREFIXE_NOM) else PREFIXE_NOM + nom
 
 
 class Stockage:
@@ -66,7 +72,7 @@ class Lampe:
         self.duree_pas_motif = duree_pas_motif
         self.reseaux = list(RESEAUX_SIMULES if reseaux is None else reseaux)
         memoire = stockage.lire()
-        self.nom = nom_force or memoire.get("nom") or nom_defaut
+        self.nom = avec_prefixe(nom_force or memoire.get("nom") or nom_defaut)
         self.wifi = memoire.get("wifi")
         self._motif: asyncio.Task | None = None
 
@@ -136,6 +142,9 @@ class Lampe:
             raise ValueError("nom non UTF-8") from e
         if not nom:
             raise ValueError("nom vide")
+        if not nom.startswith(PREFIXE_NOM):
+            self.journal(f"Préfixe {PREFIXE_NOM} ajouté au nom reçu : {nom!r}")
+            nom = avec_prefixe(nom)
         if len(nom.encode("utf-8")) > TAILLE_MAX_NOM:
             self.journal(f"Attention : nom de plus de {TAILLE_MAX_NOM} octets, il sera tronqué dans l'annonce")
         self.nom = nom
