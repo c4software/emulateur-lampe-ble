@@ -84,7 +84,10 @@ main { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); ga
 .chiffre span { color: var(--texte-doux); font-size: .85rem }
 ul.liste { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px }
 ul.liste li { font-size: .85rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--trait) }
-ul.liste li.actif { border-color: var(--vert); color: var(--vert) }
+ul.liste li.actif { border-color: var(--vert); color: var(--vert); background: color-mix(in srgb, var(--vert) 12%, transparent) }
+ul.liste li.actif::before { content: "● " }
+ul.liste li.inactif { border-style: dashed; color: var(--texte-doux); opacity: .7 }
+ul.liste li.inactif::before { content: "○ " }
 .vide { color: var(--texte-doux); font-size: .9rem }
 .journal { font: .8rem/1.55 var(--mono); max-height: 340px; overflow: auto; margin: 0; padding: 0; list-style: none }
 .journal li { padding: 2px 0; border-bottom: 1px dashed var(--trait); overflow-wrap: anywhere }
@@ -132,7 +135,7 @@ code { font-family: var(--mono); font-size: .85em }
     </section>
 
     <section class="bloc">
-      <h2>Notifications activées</h2>
+      <h2>Notifications</h2>
       <ul class="liste" id="abonnements"></ul>
       <p class="aide" id="aide-abonnement"></p>
     </section>
@@ -160,10 +163,11 @@ function afficherEtat(e) {
     ? e.clients.map(c => `<li class="actif">${echapper(c)}</li>`).join('')
     : '<li class="vide">Aucun. Lancez un scan depuis le téléphone.</li>'
   $('abonnements').innerHTML = CARACTERISTIQUES
-    .map(c => `<li class="${e.abonnements.includes(c) ? 'actif' : ''}">${LIBELLES[c]}</li>`).join('')
-  $('aide-abonnement').textContent = e.notifAbonnement
+    .map(c => `<li class="${e.abonnements.includes(c) ? 'actif' : 'inactif'}">${LIBELLES[c]}</li>`).join('')
+  const actives = e.abonnements.length
+  $('aide-abonnement').textContent = (actives ? '' : 'Aucune notification activée par un téléphone. ') + (e.notifAbonnement
     ? "L'état et le compteur sont envoyés dès qu'un téléphone s'abonne."
-    : "Comme la vraie carte : l'état n'est envoyé qu'au premier changement."
+    : "Comme la vraie carte : l'état n'est envoyé qu'au premier changement.")
   document.title = `${e.led ? '💡' : '○'} ${e.nom} · émulateur`
 }
 

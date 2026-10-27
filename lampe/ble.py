@@ -271,16 +271,43 @@ class PeripheriqueBLE:
 
     # ----------------------------------------------------------------- connexions
     async def surveiller_connexions(self) -> None:
-        regle = ("type='signal',sender='org.bluez',interface='org.freedesktop.DBus.Properties',"
-                 "member='PropertiesChanged',arg0='org.bluez.Device1'")
-        await self.bus.call(Message(
-            destination="org.freedesktop.DBus", path="/org/freedesktop/DBus",
-            interface="org.freedesktop.DBus", member="AddMatch", signature="s", body=[regle],
-        ))
+        # Un appareil déjà connu signale sa connexion par PropertiesChanged ;
+        # un appareil vu pour la première fois arrive par InterfacesAdded, déjà connecté.
+        for regle in (
+            "type='signal',sender='org.bluez',interface='org.freedesktop.DBus.Properties',"
+            "member='PropertiesChanged',arg0='org.bluez.Device1'",
+            "type='signal',sender='org.bluez',interface='org.freedesktop.DBus.ObjectManager',"
+            "member='InterfacesAdded'",
+        ):
+            await self.bus.call(Message(
+                destination="org.freedesktop.DBus", path="/org/freedesktop/DBus",
+                interface="org.freedesktop.DBus", member="AddMatch", signature="s", body=[regle],
+            ))
         self.bus.add_message_handler(self._sur_signal)
 
+        # Appareils déjà connectés au lancement de l'émulateur
+        reponse = await self.bus.call(Message(
+            destination=BLUEZ, path="/", interface="org.freedesktop.DBus.ObjectManager",
+            member="GetManagedObjects",
+        ))
+        if reponse.message_type == MessageType.METHOD_RETURN:
+            for chemin, interfaces in reponse.body[0].items():
+                appareil = interfaces.get("org.bluez.Device1")
+                if (chemin.startswith(self.chemin_adaptateur + "/dev_") and appareil
+                        and appareil.get("Connected") and appareil["Connected"].value):
+                    await self._journal_connexion(chemin, True)
+
     def _sur_signal(self, message: Message):
-        if (message.message_type != MessageType.SIGNAL or message.member != "PropertiesChanged"
+        if message.message_type != MessageType.SIGNAL:
+            return None
+        if message.member == "InterfacesAdded":
+            chemin, interfaces = message.body
+            appareil = interfaces.get("org.bluez.Device1")
+            if (chemin.startswith(self.chemin_adaptateur + "/dev_") and appareil
+                    and appareil.get("Connected") and appareil["Connected"].value):
+                asyncio.get_running_loop().create_task(self._journal_connexion(chemin, True))
+            return None
+        if (message.member != "PropertiesChanged"
                 or not message.path.startswith(self.chemin_adaptateur + "/dev_")
                 or message.body[0] != "org.bluez.Device1"):
             return None
@@ -298,11 +325,17 @@ class PeripheriqueBLE:
             nom = self.appareils.get(chemin, adresse)
         self.appareils[chemin] = nom
         if connecte:
+            if chemin in self.connectes:
+                return  # déjà signalé (les deux signaux de BlueZ peuvent arriver)
             self.connectes[chemin] = f"{nom} ({adresse})"
             self.log(f"Client connecté : {nom} ({adresse})")
         else:
             self.connectes.pop(chemin, None)
             self.log(f"Client déconnecté : {nom} ({adresse})")
+            if not self.connectes:
+                # Plus aucun client : plus personne n'écoute les notifications
+                for c in self.caracteristiques:
+                    c.abonne = False
 
     def _client(self, options: dict) -> str:
         chemin = options.get("device")
