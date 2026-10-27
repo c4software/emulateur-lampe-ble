@@ -40,12 +40,13 @@ h1 small { font-weight: 400; color: var(--texte-doux) }
 .statut::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--vert) }
 .statut.hors-ligne::before { background: var(--rouge) }
 main { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 20px; max-width: 1100px; margin: 0 auto; padding: 12px 16px 32px }
-@media (max-width: 860px) { main { grid-template-columns: 1fr } }
+@media (max-width: 860px) { main { grid-template-columns: 1fr } .carte { position: static } }
 
 /* La carte */
 .carte {
   position: relative; background: var(--pcb); border: 3px solid var(--pcb-bord); border-radius: 18px;
-  padding: 28px 28px 32px; color: var(--serigraphie); min-height: 520px;
+  padding: 28px 28px 32px; color: var(--serigraphie); height: 520px;
+  align-self: start; position: sticky; top: 16px; /* taille fixe : ne suit pas la hauteur du journal */
   display: flex; flex-direction: column; align-items: center; gap: 26px;
   background-image: radial-gradient(circle at 1px 1px, rgb(255 255 255 / .05) 1px, transparent 0); background-size: 14px 14px;
 }
