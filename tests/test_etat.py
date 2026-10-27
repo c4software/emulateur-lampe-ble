@@ -48,11 +48,13 @@ class TestToggle(Base):
         l.basculer("HTTP")
         self.assertEqual(l.statut(), {"state": "OFF", "count": 2})
 
-    async def test_valeur_inconnue_ignoree(self):
+    async def test_toute_ecriture_bascule(self):
+        # Comme le firmware : "0", une chaîne vide ou un texte quelconque basculent aussi la LED.
         l = self.lampe()
-        for v in (b"0", b"", b"abc", b"\xff"):
+        for i, v in enumerate((b"0", b"", b"abc", b"\xff"), start=1):
             l.ecrire_toggle(v)
-        self.assertEqual((l.led, l.compteur, self.notifs), (False, 0, []))
+            self.assertEqual(l.compteur, i)
+        self.assertFalse(l.led)  # 4 bascules : retour à l'état initial
 
     async def test_motif_restaure_et_ne_compte_pas(self):
         l = self.lampe(duree_pas_motif=0.001)

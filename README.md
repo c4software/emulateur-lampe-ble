@@ -81,7 +81,7 @@ Service principal : `795090c7-420d-4048-a24e-18e60180e23c` (présent dans l'anno
 
 | Caractéristique | UUID | Propriétés | Comportement |
 |---|---|---|---|
-| TOGGLE_LED | `59b6bf7f-44de-4184-81bd-a0e3b30c919b` | WRITE | `"1"` bascule la LED (compteur + 1, notification de l'état et du compteur). Une suite de `0`/`1` (ex. `1010100011101110111000101010`) joue un motif. Toute autre valeur est ignorée. |
+| TOGGLE_LED | `59b6bf7f-44de-4184-81bd-a0e3b30c919b` | WRITE | Toute écriture bascule la LED, quelle que soit la valeur (`"1"`, `"0"`…), comme sur la carte : compteur + 1, notification de l'état et du compteur. Seule exception : une suite de `0`/`1` de plusieurs caractères (ex. `1010100011101110111000101010`) joue un motif. |
 | LED_STATE | `d75167c8-e6f9-4f0b-b688-09d96e195f00` | NOTIFY | `"1"` (allumée) ou `"0"` (éteinte), à chaque changement |
 | TOGGLE_COUNT | `a877d87f-60bf-4ad5-ba61-56133b2cd9d4` | NOTIFY | Nombre de bascules en texte (`"0"`, `"1"`…), à chaque changement |
 | DEVICE_NAME | `1497b8a8-64f8-11ee-8c99-0242ac120002` | WRITE | Nouveau nom en UTF-8, enregistré dans `etat-lampe.json` et réannoncé immédiatement. Un nom vide est refusé. |

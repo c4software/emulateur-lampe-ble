@@ -98,15 +98,15 @@ class Lampe:
         self.basculer("bouton physique")
 
     def ecrire_toggle(self, octets: bytes, client: str = "BLE") -> None:
+        # Comme le firmware : toute écriture bascule la LED, quelle que soit la valeur.
+        # Seule exception (hypothèse) : une suite de 0 et de 1 de plusieurs caractères joue un motif.
         texte = octets.decode("utf-8", errors="replace").strip("\x00 \r\n")
-        if texte == "1":
-            self.basculer(client)
-        elif len(texte) > 1 and set(texte) <= {"0", "1"}:
+        if len(texte) > 1 and set(texte) <= {"0", "1"}:
             self.journal(f"Motif reçu ({client}) : {texte}")
             self._annuler_motif()
             self._motif = asyncio.get_running_loop().create_task(self.jouer_motif(texte))
         else:
-            self.journal(f"Écriture ignorée sur TOGGLE_LED : {texte!r} (attendu : \"1\")")
+            self.basculer(client)
 
     async def jouer_motif(self, motif: str) -> None:
         """Animation de la LED (ex. SOS). Comportement supposé : le compteur ne bouge pas
